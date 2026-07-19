@@ -244,37 +244,35 @@
                 </div>
             </div>
 
-            <div class="section-title">Linear Motion 1</div>
+            <div class="section-title">Concept 1: Linear Motion</div>
             <div class="grid-inputs">
                 <div class="input-group">
-                    <label>Acceleration (m/s²)</label>
+                    <label>Init. V (m/s)</label>
+                    <input type="number" id="lin1_v0" step="any" min="0" value="0" onchange="drawStatic();">
+                </div>
+                <div class="input-group">
+                    <label>Accel. (m/s²)</label>
                     <input type="number" id="lin1_a" step="any" min="0.1" value="3" onchange="drawStatic();">
                 </div>
                 <div class="input-group">
-                    <label>Distance (m)</label>
+                    <label>Dist. (m)</label>
                     <input type="number" id="lin1_d" step="any" min="1" value="90" onchange="drawStatic();">
                 </div>
             </div>
 
-            <div class="section-title">Free Fall (Projectile Type 1)</div>
-            <div class="grid-inputs">
-                <div class="input-group">
-                    <label>Drop Height (m)</label>
-                    <input type="number" id="drop_h" step="any" min="1" value="60" onchange="drawStatic();">
-                </div>
-                <div class="input-group">
-                    <label>Drop Width (m)</label>
-                    <input type="number" id="drop_w" step="any" min="1" value="80" onchange="drawStatic();">
-                </div>
+            <div class="section-title">Concept 2: Free Fall</div>
+            <div class="input-group">
+                <label>Drop Height (m)</label>
+                <input type="number" id="drop_h" step="any" min="1" value="60" onchange="drawStatic();">
             </div>
 
-            <div class="section-title">Linear Motion 2</div>
+            <div class="section-title">Concept 3: Linear Motion</div>
             <div class="input-group">
                 <label>Distance (m)</label>
                 <input type="number" id="lin2_d" step="any" min="1" value="50" onchange="drawStatic();">
             </div>
 
-            <div class="section-title">Circular Motion</div>
+            <div class="section-title">Concept 4: Circular Motion</div>
             <div class="input-group">
                 <label>Loop Radius (m)</label>
                 <input type="number" id="loop_r" step="any" min="5" value="20" onchange="drawStatic();">
@@ -401,14 +399,12 @@
         const ctx = canvas.getContext('2d');
         const g = 9.8; 
 
-        // Load specific custom sprites provided in materials
         const imgTrain = new Image();
         imgTrain.src = 'Materials/Sprites_Train(1000x1000).png'; 
         
         const imgCart = new Image();
         imgCart.src = 'Materials/Sprites_Cart(1000x1000).png'; 
 
-        // Load Backgrounds
         const imgNight = new Image();
         imgNight.src = 'Materials/BG_Night(1536x1024).png';
 
@@ -425,10 +421,10 @@
         let reqAnimFrame, lastDrawTime = 0;
         const timeScale = 1.0; 
 
-        // Kinematic States
-        let T0=0, T1, T2, Ttrans, T3, T4, T5;
-        let X1, Y1, X2, Y2, Xtrans, Ytrans, X3, Y3, X4, Y4, X5;
-        let v1, v_trans, t_trans, theta, r_t = 15;
+        // Kinematic States strictly aligned to Laws of Motion
+        let T0=0, T1, T2, T3, T4, T5;
+        let X1, Y1, X2, Y2, X3, Y3, X4, Y4, X5;
+        let v1, v_trans;
         let max_x, max_y;
 
         // Viewport Settings
@@ -472,49 +468,43 @@
         }
 
         function calculateLimits() {
+            let v0 = parseFloat(document.getElementById('lin1_v0').value) || 0;
             let a1 = parseFloat(document.getElementById('lin1_a').value) || 3;
             let d1 = parseFloat(document.getElementById('lin1_d').value) || 90;
             let drop_h = parseFloat(document.getElementById('drop_h').value) || 60;
-            let drop_w = parseFloat(document.getElementById('drop_w').value) || 80;
             let d2 = parseFloat(document.getElementById('lin2_d').value) || 50;
             let loop_r = parseFloat(document.getElementById('loop_r').value) || 20;
             
-            // Phase 1 (Linear 1) - Accelerated from 0 m/s
-            let t1 = Math.sqrt((2 * d1) / a1);
-            v1 = a1 * t1;
-            T1 = t1;
+            // Concept 1: Linear Motion 1 - Accelerated from Init Velocity
+            v1 = Math.sqrt(v0 * v0 + 2 * a1 * d1);
+            T1 = (v1 - v0) / a1;
             
-            // Phase 2 (Fixed Parabolic Drop Track)
-            let t2 = drop_w / v1; 
-            let vy2 = 2 * drop_h * v1 / drop_w; // Final vertical velocity derived from geometric path
-            v_trans = Math.sqrt(v1*v1 + vy2*vy2);
-            theta = Math.atan2(vy2, v1); // purely geometric evaluation: Math.atan(2 * drop_h / drop_w)
+            Y1 = drop_h; // Top of the track
+            X1 = d1;
+            
+            // Concept 2: Pure Free Fall (Projectile falling directly under gravity)
+            let t2 = Math.sqrt(2 * drop_h / g); 
             T2 = T1 + t2;
             
-            // Phase 2.5 (Smooth Curve Transition visually joining Freefall and Linear 2)
-            t_trans = (r_t * theta) / v_trans;
-            Ttrans = T2 + t_trans;
-            
-            // Y Mapping (0 is bottom of track)
-            Ytrans = 0; 
-            Y2 = r_t * (1 - Math.cos(theta)); // Height offset for smooth bottom transition
-            Y1 = Y2 + drop_h; // Top of the track
-            X1 = d1;
+            let drop_w = v1 * t2; // Mathematically accurate drop width based on horizontal velocity and free-fall time
             X2 = X1 + drop_w;
-            Xtrans = X2 + r_t * Math.sin(theta);
+            Y2 = 0; // Hits the bottom
+
+            let vy2 = g * t2; // Pure vertical component obtained entirely by gravity over drop time
+            v_trans = Math.sqrt(v1*v1 + vy2*vy2); // Inherited speed magnitude
             
-            // Phase 3 (Linear 2) - Inherited velocity
+            // Concept 3: Linear Motion 2 - Maintained velocity
             let t3 = d2 / v_trans;
-            T3 = Ttrans + t3;
-            X3 = Xtrans + d2;
+            T3 = T2 + t3;
+            X3 = X2 + d2;
             Y3 = 0;
             
-            // Phase 4 (Circular Motion Loop)
+            // Concept 4: Circular Motion Loop
             let t4 = (2 * Math.PI * loop_r) / v_trans;
             T4 = T3 + t4;
-            X4 = X3; // X center of loop
+            X4 = X3; // Entering Bottom of loop and exiting loop center X
             
-            // Phase 5 (Forward Exit off track)
+            // Phase 5: Forward Exit off track
             T5 = T4 + (50 / v_trans); 
             X5 = X4 + 50;
 
@@ -523,36 +513,26 @@
         }
 
         function getState(time) {
+            let v0 = parseFloat(document.getElementById('lin1_v0').value) || 0;
             let a1 = parseFloat(document.getElementById('lin1_a').value) || 3;
-            let drop_h = parseFloat(document.getElementById('drop_h').value) || 60;
-            let drop_w = parseFloat(document.getElementById('drop_w').value) || 80;
             let loop_r = parseFloat(document.getElementById('loop_r').value) || 20;
 
             if (time <= T1) {
                 // Linear 1
-                return { x: 0.5 * a1 * time * time, y: Y1, phase: 1 };
+                let x = v0 * time + 0.5 * a1 * time * time;
+                return { x: x, y: Y1, phase: 1 };
             } 
             else if (time <= T2) {
-                // Fixed Parabolic Drop (Geometry locked to inputs)
+                // Pure Free Fall (Projectile path strictly dictated by g)
                 let dt = time - T1;
                 let x = X1 + v1 * dt;
-                let c = drop_h / (drop_w * drop_w);
-                let y = Y1 - c * (x - X1) * (x - X1);
+                let y = Y1 - 0.5 * g * dt * dt;
                 return { x: x, y: y, phase: 2 };
             }
-            else if (time <= Ttrans) {
-                // Smooth transition
-                let dt = time - T2;
-                let omega_t = theta / t_trans;
-                let cur_theta = theta - omega_t * dt;
-                let x = X2 + r_t * (Math.sin(theta) - Math.sin(cur_theta));
-                let y = Y2 - r_t * (Math.cos(cur_theta) - Math.cos(theta));
-                return { x: x, y: y, phase: 2.5 };
-            }
             else if (time <= T3) {
-                // Linear 2
-                let dt = time - Ttrans;
-                return { x: Xtrans + v_trans * dt, y: 0, phase: 3 };
+                // Linear 2 - Instant, physically rigid transition to flat moving 
+                let dt = time - T2;
+                return { x: X2 + v_trans * dt, y: 0, phase: 3 };
             }
             else if (time <= T4) {
                 // Circular Loop (Vertical)
@@ -704,6 +684,10 @@
                 let p = getState(scanT);
                 ctx.lineTo(offsetX + p.x * scale, offsetY - p.y * scale);
             }
+            if (upToTime > 0) {
+                let p = getState(upToTime);
+                ctx.lineTo(offsetX + p.x * scale, offsetY - p.y * scale);
+            }
             ctx.stroke();
         }
 
@@ -827,7 +811,6 @@
             calculateLimits(); 
             
             if (!isSimulating && t > 0) {
-                // If it was fully completed or heavily processed, snap to new total time limits to refresh properly
                 if (t >= oldT5 - 0.1) {
                     t = T5; 
                 } else {
@@ -882,70 +865,65 @@
             let c = document.getElementById('analysisContent');
             
             let mass = parseFloat(document.getElementById('mass').value) || 500;
+            let v0 = parseFloat(document.getElementById('lin1_v0').value) || 0;
             let a1 = parseFloat(document.getElementById('lin1_a').value) || 3;
             let d1 = parseFloat(document.getElementById('lin1_d').value) || 90;
             let drop_h = parseFloat(document.getElementById('drop_h').value) || 60;
-            let drop_w = parseFloat(document.getElementById('drop_w').value) || 80;
             let d2 = parseFloat(document.getElementById('lin2_d').value) || 50;
             let r_loop = parseFloat(document.getElementById('loop_r').value) || 20;
 
             let html = "";
             
             // Linear Motion 1 Output
+            let t1_dur = T1;
             html += `
                 <div class="analysis-section">
-                    <div class="analysis-header">Linear Motion 1</div>
+                    <div class="analysis-header">Concept 1: Linear Motion 1</div>
                     <div class="answers-box">
-                        <p><strong>Initial Velocity:</strong> 0.00 m/s (from rest)</p>
+                        <p><strong>Initial Velocity:</strong> ${formatValue(v0, dp)} m/s</p>
                         <p><strong>Acceleration:</strong> ${a1} m/s²</p>
-                        <p><strong>Distance Covered:</strong> ${d1} m</p>
-                        <p><strong>Time to reach ${d1}m:</strong> ${formatValue(T1, dp)} s</p>
+                        <p><strong>Time to reach ${d1}m:</strong> ${formatValue(t1_dur, dp)} s</p>
                         <p><strong>Final Velocity:</strong> ${formatValue(v1, dp)} m/s</p>
                     </div>
                 </div>
             ` + buildTableHTML("Motion Table - Linear Motion 1", 0, T1, false);
 
-            // Free Fall Output
-            let vy2 = 2 * drop_h * v1 / drop_w; // Geometric logic implemented
+            // Pure Free Fall Output (True Kinetic)
+            let t2_dur = T2 - T1;
             html += `
                 <div class="analysis-section">
-                    <div class="analysis-header">Free Fall (Projectile Type 1)</div>
+                    <div class="analysis-header">Concept 2: Free Fall</div>
                     <div class="answers-box">
-                        <p><strong>Horizontal Velocity:</strong> ${formatValue(v1, dp)} m/s</p>
-                        <p><strong>Horizontal Span Covered:</strong> ${drop_w} m</p>
-                        <p><strong>Time to reach end of drop:</strong> ${formatValue(T2 - T1, dp)} s</p>
-                        <p><strong>Final Velocity Vector:</strong> ${formatValue(v_trans, dp)} m/s</p>
+                        <p><strong>Drop Height:</strong> ${drop_h} m</p>
+                        <p><strong>Time as it reaches the end of drop:</strong> ${formatValue(t2_dur, dp)} s</p>
+                        <p><strong>Final Velocity (combined vectors):</strong> ${formatValue(v_trans, dp)} m/s</p>
                     </div>
                 </div>
             ` + buildTableHTML("Motion Table - Free Fall", T1, T2, false);
 
-            // Linear Motion 2 Output (Includes Transition internally)
+            // Linear Motion 2 Output 
+            let t3_dur = T3 - T2;
             html += `
                 <div class="analysis-section">
-                    <div class="analysis-header">Linear Motion 2</div>
+                    <div class="analysis-header">Concept 3: Linear Motion 2</div>
                     <div class="answers-box">
-                        <p><strong>Velocity (Inherited):</strong> ${formatValue(v_trans, dp)} m/s</p>
-                        <p><strong>Acceleration:</strong> 0.00 m/s²</p>
-                        <p><strong>Distance Covered:</strong> ${d2} m</p>
-                        <p><strong>Time to reach ${d2}m:</strong> ${formatValue(T3 - Ttrans, dp)} s</p>
-                        <p><strong>Final Velocity:</strong> ${formatValue(v_trans, dp)} m/s</p>
+                        <p><strong>Time to reach ${d2}m:</strong> ${formatValue(t3_dur, dp)} s</p>
+                        <p><strong>Final Velocity (Maintained):</strong> ${formatValue(v_trans, dp)} m/s</p>
                     </div>
                 </div>
-            ` + buildTableHTML("Motion Table - Linear Motion 2", Ttrans, T3, false);
+            ` + buildTableHTML("Motion Table - Linear Motion 2", T2, T3, false);
 
             // Circular Motion Output
             let ac = (v_trans * v_trans) / r_loop;
             let Fc = mass * ac;
+            let t4_dur = T4 - T3;
             html += `
                 <div class="analysis-section">
-                    <div class="analysis-header">Circular Motion</div>
+                    <div class="analysis-header">Concept 4: Circular Motion</div>
                     <div class="answers-box">
-                        <p><strong>Loop Radius:</strong> ${r_loop} m</p>
-                        <p><strong>Cart Mass:</strong> ${mass} kg</p>
-                        <p><strong>Velocity:</strong> ${formatValue(v_trans, dp)} m/s</p>
                         <p><strong>Centripetal Acceleration (a_c):</strong> ${formatValue(ac, dp)} m/s²</p>
                         <p><strong>Centripetal Force on cart (F_c):</strong> ${formatValue(Fc, dp)} N</p>
-                        <p><strong>Time for full revolution:</strong> ${formatValue(T4 - T3, dp)} s</p>
+                        <p><strong>Time for full revolution:</strong> ${formatValue(t4_dur, dp)} s</p>
                     </div>
                 </div>
             ` + buildTableHTML("Motion Table - Circular Motion", T3, T4, true);
