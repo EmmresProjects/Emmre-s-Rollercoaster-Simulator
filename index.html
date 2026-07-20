@@ -746,14 +746,9 @@
             lastDrawTime = performance.now();
             updateScaling();
             
-            if (document.getElementById('checkFollow').checked) {
-                let st = getState(0);
-                container.scrollLeft = (offsetX + st.x * scale) - container.clientWidth / 2;
-                container.scrollTop = (offsetY - st.y * scale) - container.clientHeight / 2;
-            } else {
-                container.scrollTop = container.scrollHeight;
-                container.scrollLeft = 0;
-            }
+            // Focus on start position regardless of checkFollow 
+            focusOnStart();
+            
             reqAnimFrame = requestAnimationFrame(updateSim);
         }
 
