@@ -127,6 +127,9 @@
         button:hover { background-color: var(--accent-hover); transform: translateY(-2px); }
         button:active { transform: scale(0.97); }
 
+        .btn-reset { background-color: #f59e0b; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
+        .btn-reset:hover { background-color: #d97706; }
+
         .btn-analysis { background-color: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
         .btn-analysis:hover { background-color: var(--success-hover); }
 
@@ -223,9 +226,9 @@
             <div class="input-group">
                 <label>Simulation Background</label>
                 <select id="bgSelect" onchange="if(!isSimulating) drawStatic();">
-                    <option value="night" selected>Night Sky</option>
+                    <option value="night">Night Sky</option>
                     <option value="afternoon">Afternoon</option>
-                    <option value="sunny">Sunny</option>
+                    <option value="sunny"selected>Sunny</option>
                 </select>
             </div>
 
@@ -236,6 +239,9 @@
                     <select id="spriteSelect" onchange="if(!isSimulating) drawStatic();">
                         <option value="cart" selected>Cart</option>
                         <option value="train">Train</option>
+                        <option value="knuckles">Knuckles</option>
+                        <option value="shadow">Shadow</option>
+                        <option value="sonic">Sonic</option>
                     </select>
                 </div>
                 <div class="input-group">
@@ -244,35 +250,31 @@
                 </div>
             </div>
 
-            <div class="section-title">Concept 1: Linear Motion</div>
+            <div class="section-title">Linear Motion 1</div>
             <div class="grid-inputs">
                 <div class="input-group">
-                    <label>Init. V (m/s)</label>
-                    <input type="number" id="lin1_v0" step="any" min="0" value="0" onchange="drawStatic();">
-                </div>
-                <div class="input-group">
-                    <label>Accel. (m/s²)</label>
+                    <label>Acceleration (m/s²)</label>
                     <input type="number" id="lin1_a" step="any" min="0.1" value="3" onchange="drawStatic();">
                 </div>
                 <div class="input-group">
-                    <label>Dist. (m)</label>
+                    <label>Distance (m)</label>
                     <input type="number" id="lin1_d" step="any" min="1" value="90" onchange="drawStatic();">
                 </div>
             </div>
 
-            <div class="section-title">Concept 2: Free Fall</div>
+            <div class="section-title">Projectile Motion - Type 1</div>
             <div class="input-group">
                 <label>Drop Height (m)</label>
                 <input type="number" id="drop_h" step="any" min="1" value="60" onchange="drawStatic();">
             </div>
 
-            <div class="section-title">Concept 3: Linear Motion</div>
+            <div class="section-title">Linear Motion 2</div>
             <div class="input-group">
                 <label>Distance (m)</label>
                 <input type="number" id="lin2_d" step="any" min="1" value="50" onchange="drawStatic();">
             </div>
 
-            <div class="section-title">Concept 4: Circular Motion</div>
+            <div class="section-title">Circular Motion</div>
             <div class="input-group">
                 <label>Loop Radius (m)</label>
                 <input type="number" id="loop_r" step="any" min="5" value="20" onchange="drawStatic();">
@@ -316,11 +318,11 @@
                     </div>
                     <div class="input-group">
                         <label>Repeat</label>
-                        <input type="number" id="vspace_repeat" step="1" min="1" value="3" onchange="if(!isSimulating) drawStatic();">
+                        <input type="number" id="vspace_repeat" step="1" min="1" value="5" onchange="if(!isSimulating) drawStatic();">
                     </div>
                     <div class="input-group">
                         <label>Spacing</label>
-                        <input type="number" id="vspace_inc" step="1" value="5" onchange="if(!isSimulating) drawStatic();">
+                        <input type="number" id="vspace_inc" step="1" value="50" onchange="if(!isSimulating) drawStatic();">
                     </div>
                 </div>
             </div>
@@ -367,6 +369,7 @@
             </div>
 
             <button onclick="startSimulation()">Start Simulation</button>
+            <button class="btn-reset" onclick="resetSimulation()">Reset</button>
             <button class="btn-analysis" onclick="showAnalysis()">Show Motion Analysis</button>
         </div>
 
@@ -399,20 +402,22 @@
         const ctx = canvas.getContext('2d');
         const g = 9.8; 
 
-        const imgTrain = new Image();
-        imgTrain.src = 'Materials/Sprites_Train(1000x1000).png'; 
-        
-        const imgCart = new Image();
-        imgCart.src = 'Materials/Sprites_Cart(1000x1000).png'; 
+        // Load Original Sprites
+        const imgTrain = new Image(); imgTrain.src = 'Materials/Sprites_Train(1000x1000).png'; 
+        const imgCart = new Image(); imgCart.src = 'Materials/Sprites_Cart(1000x1000).png'; 
 
-        const imgNight = new Image();
-        imgNight.src = 'Materials/BG_Night(1536x1024).png';
+        // Load New Character Sprites
+        const imgKnuckles = new Image(); imgKnuckles.src = 'Materials/Sprites_Knuckles(1000x1000).png';
+        const imgKnucklesBall = new Image(); imgKnucklesBall.src = 'Materials/Sprites_Knuckles_Ball(1000x1000).png';
+        const imgShadow = new Image(); imgShadow.src = 'Materials/Sprites_Shadow(1000x1000).png';
+        const imgShadowBall = new Image(); imgShadowBall.src = 'Materials/Sprites_Shadow_Ball(1000x1000).png';
+        const imgSonic = new Image(); imgSonic.src = 'Materials/Sprites_Sonic(1000x1000).png';
+        const imgSonicBall = new Image(); imgSonicBall.src = 'Materials/Sprites_Sonic_Ball(1000x1000).png';
 
-        const imgAfternoon = new Image();
-        imgAfternoon.src = 'Materials/BG_Afternoon(1536x1024).png';
-
-        const imgSunny = new Image();
-        imgSunny.src = 'Materials/BG_Sunny(1536x1024).png';
+        // Load Backgrounds
+        const imgNight = new Image(); imgNight.src = 'Materials/BG_Night(1536x1024).png';
+        const imgAfternoon = new Image(); imgAfternoon.src = 'Materials/BG_Afternoon(1536x1024).png';
+        const imgSunny = new Image(); imgSunny.src = 'Materials/BG_Sunny(1536x1024).png';
 
         let isSimulating = false;
         let t = 0;
@@ -421,7 +426,7 @@
         let reqAnimFrame, lastDrawTime = 0;
         const timeScale = 1.0; 
 
-        // Kinematic States strictly aligned to Laws of Motion
+        // Kinematic States
         let T0=0, T1, T2, T3, T4, T5;
         let X1, Y1, X2, Y2, X3, Y3, X4, Y4, X5;
         let v1, v_trans;
@@ -468,43 +473,41 @@
         }
 
         function calculateLimits() {
-            let v0 = parseFloat(document.getElementById('lin1_v0').value) || 0;
             let a1 = parseFloat(document.getElementById('lin1_a').value) || 3;
             let d1 = parseFloat(document.getElementById('lin1_d').value) || 90;
             let drop_h = parseFloat(document.getElementById('drop_h').value) || 60;
             let d2 = parseFloat(document.getElementById('lin2_d').value) || 50;
             let loop_r = parseFloat(document.getElementById('loop_r').value) || 20;
             
-            // Concept 1: Linear Motion 1 - Accelerated from Init Velocity
-            v1 = Math.sqrt(v0 * v0 + 2 * a1 * d1);
-            T1 = (v1 - v0) / a1;
-            
-            Y1 = drop_h; // Top of the track
+            // Phase 1 (Linear 1) - Accelerated from 0 m/s
+            let t1 = Math.sqrt((2 * d1) / a1);
+            v1 = a1 * t1;
+            T1 = t1;
+            Y1 = drop_h; 
             X1 = d1;
             
-            // Concept 2: Pure Free Fall (Projectile falling directly under gravity)
-            let t2 = Math.sqrt(2 * drop_h / g); 
+            // Phase 2 (Projectile Motion Type 1 - Laws of Motion)
+            let t2 = Math.sqrt((2 * drop_h) / g); 
+            let drop_w = v1 * t2; 
+            let vy2 = g * t2; 
+            v_trans = Math.sqrt(v1*v1 + vy2*vy2);
+            
             T2 = T1 + t2;
-            
-            let drop_w = v1 * t2; // Mathematically accurate drop width based on horizontal velocity and free-fall time
             X2 = X1 + drop_w;
-            Y2 = 0; // Hits the bottom
-
-            let vy2 = g * t2; // Pure vertical component obtained entirely by gravity over drop time
-            v_trans = Math.sqrt(v1*v1 + vy2*vy2); // Inherited speed magnitude
+            Y2 = 0;
             
-            // Concept 3: Linear Motion 2 - Maintained velocity
+            // Phase 3 (Linear 2) - Inherited Resultant Velocity
             let t3 = d2 / v_trans;
             T3 = T2 + t3;
             X3 = X2 + d2;
             Y3 = 0;
             
-            // Concept 4: Circular Motion Loop
+            // Phase 4 (Circular Motion Loop)
             let t4 = (2 * Math.PI * loop_r) / v_trans;
             T4 = T3 + t4;
-            X4 = X3; // Entering Bottom of loop and exiting loop center X
+            X4 = X3; // X center of loop
             
-            // Phase 5: Forward Exit off track
+            // Phase 5 (Forward Exit off track)
             T5 = T4 + (50 / v_trans); 
             X5 = X4 + 50;
 
@@ -513,24 +516,23 @@
         }
 
         function getState(time) {
-            let v0 = parseFloat(document.getElementById('lin1_v0').value) || 0;
             let a1 = parseFloat(document.getElementById('lin1_a').value) || 3;
+            let drop_h = parseFloat(document.getElementById('drop_h').value) || 60;
             let loop_r = parseFloat(document.getElementById('loop_r').value) || 20;
 
             if (time <= T1) {
                 // Linear 1
-                let x = v0 * time + 0.5 * a1 * time * time;
-                return { x: x, y: Y1, phase: 1 };
+                return { x: 0.5 * a1 * time * time, y: Y1, phase: 1 };
             } 
             else if (time <= T2) {
-                // Pure Free Fall (Projectile path strictly dictated by g)
+                // Projectile Motion Type 1
                 let dt = time - T1;
                 let x = X1 + v1 * dt;
                 let y = Y1 - 0.5 * g * dt * dt;
-                return { x: x, y: y, phase: 2 };
+                return { x: x, y: Math.max(0, y), phase: 2 };
             }
             else if (time <= T3) {
-                // Linear 2 - Instant, physically rigid transition to flat moving 
+                // Linear 2
                 let dt = time - T2;
                 return { x: X2 + v_trans * dt, y: 0, phase: 3 };
             }
@@ -593,6 +595,15 @@
             reqAnimFrame = requestAnimationFrame(updateSim);
         }
 
+        function resetSimulation() {
+            cancelAnimationFrame(reqAnimFrame);
+            isSimulating = false;
+            t = 0;
+            trails = [];
+            nextTrailTime = 0;
+            drawStatic();
+        }
+
         function updateSim(timestamp) {
             if(!isSimulating) return;
             let dt = (timestamp - lastDrawTime) / 1000; 
@@ -650,14 +661,12 @@
             ctx.font = '14px Segoe UI';
             ctx.textAlign = 'center'; ctx.textBaseline = 'top';
 
-            // X Grid
             for (let x_val = 0; x_val <= max_x; x_val += unitX) {
                 let px = offsetX + x_val * scale;
                 ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, cssHeight); ctx.stroke();
                 ctx.fillText(x_val, px, offsetY + 15);
             }
 
-            // Y Grid
             ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
             for (let y_val = 0; y_val <= max_y; y_val += unitY) {
                 let py = offsetY - y_val * scale;
@@ -665,7 +674,6 @@
                 ctx.fillText(y_val, offsetX - 15, py);
             }
 
-            // Axes
             ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(71, 85, 105, 0.9)';
             ctx.beginPath(); ctx.moveTo(0, offsetY); ctx.lineTo(cssWidth, offsetY); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(offsetX, 0); ctx.lineTo(offsetX, cssHeight); ctx.stroke();
@@ -684,17 +692,12 @@
                 let p = getState(scanT);
                 ctx.lineTo(offsetX + p.x * scale, offsetY - p.y * scale);
             }
-            if (upToTime > 0) {
-                let p = getState(upToTime);
-                ctx.lineTo(offsetX + p.x * scale, offsetY - p.y * scale);
-            }
             ctx.stroke();
         }
 
         function drawSim() {
             ctx.clearRect(0, 0, cssWidth, cssHeight);
 
-            // Draw Background ensuring 100% cover inside canvas (Zooms automatically via canvas scale logic)
             let bgVal = document.getElementById('bgSelect').value;
             let bgImg = null;
             if (bgVal === 'night') bgImg = imgNight;
@@ -710,18 +713,14 @@
             let pathColor = document.getElementById('pathColor').value || "#3b82f6";
             let trajColor = document.getElementById('trajColor').value || "#ef4444";
             
-            // Draw Blue Path entirely
             drawFullTrack(pathColor, 6, T5);
 
-            // If tracing trajectory, draw Red over it up to current time
             if (document.getElementById('checkTrajectory').checked) {
                 drawFullTrack(trajColor, 4, isSimulating ? t : T5);
             }
 
-            // Draw Position Trails
             let fontSize = parseInt(document.getElementById('labelFontSize').value) || 11;
             let dp = parseInt(document.getElementById('decimalPlaces').value) || 2;
-            
             let vSpaceStart = parseFloat(document.getElementById('vspace_start').value) || 15;
             let vSpaceRepeat = parseInt(document.getElementById('vspace_repeat').value) || 3;
             let vSpaceInc = parseFloat(document.getElementById('vspace_inc').value) || 5;
@@ -734,19 +733,15 @@
                 let px = offsetX + tr.x * scale;
                 let py = offsetY - tr.y * scale;
 
-                // Point dot
                 ctx.beginPath();
                 ctx.arc(px, py, 4, 0, Math.PI*2);
                 ctx.fillStyle = '#facc15';
                 ctx.fill();
 
-                // Dynamic Vertical Spacing Logic mapped exactly as requested
                 let dynamicVSpace = vSpaceStart + (i % (vSpaceRepeat + 1)) * vSpaceInc;
-                
                 let textX = px + 10;
                 let textY = py - dynamicVSpace - 10;
 
-                // Pointer line
                 ctx.beginPath();
                 ctx.moveTo(px, py - 5);
                 ctx.lineTo(px, textY + 5);
@@ -775,7 +770,7 @@
                 ctx.fillText(outStr, textX, textY);
             }
 
-            // Draw Object / Train / Cart
+            // Draw Object / Train / Cart / Characters
             if (t > 0 || (!isSimulating && t===0)) {
                 let st = getState(t);
                 let st2 = getState(Math.min(t + 0.01, T5));
@@ -787,19 +782,47 @@
                 let py = offsetY - st.y * scale;
 
                 let spriteType = document.getElementById('spriteSelect').value;
-                let img = spriteType === 'train' ? imgTrain : imgCart;
+                let isCharacter = ['knuckles', 'shadow', 'sonic'].includes(spriteType);
+                
+                let img = null;
+                let sSize = 45; // Fixed size fit for tracks
+                let isBall = false;
+
+                if (isCharacter) {
+                    isBall = (isSimulating && t > 0);
+                    if (spriteType === 'knuckles') img = isBall ? imgKnucklesBall : imgKnuckles;
+                    else if (spriteType === 'shadow') img = isBall ? imgShadowBall : imgShadow;
+                    else if (spriteType === 'sonic') img = isBall ? imgSonicBall : imgSonic;
+                } else {
+                    img = spriteType === 'train' ? imgTrain : imgCart;
+                }
                 
                 ctx.save();
-                ctx.translate(px, py);
-                ctx.rotate(angle);
                 
-                let sSize = 45; // Fixed size fit for tracks
-                if (img.complete && img.naturalWidth > 0) {
-                    // Offset center bottom pivot
-                    ctx.drawImage(img, -sSize/2, -sSize, sSize, sSize);
+                if (isCharacter && isBall) {
+                    // Ball rolling dynamically on track (FIXED TRANSFORMATION ORDER)
+                    ctx.translate(px, py);
+                    ctx.rotate(angle); // Rotate to track trajectory first
+                    ctx.translate(0, -sSize/2); // Offset ball to sit exactly on the path's surface
+                    
+                    let spinAngle = t * 50; // Rapid spin mapped to time
+                    ctx.rotate(spinAngle);
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        ctx.drawImage(img, -sSize/2, -sSize/2, sSize, sSize);
+                    } else {
+                        ctx.fillStyle = spriteType === 'sonic' ? '#3b82f6' : '#ef4444';
+                        ctx.beginPath(); ctx.arc(0, 0, sSize/2, 0, Math.PI*2); ctx.fill();
+                    }
                 } else {
-                    ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(-20, -20, 40, 20);
+                    // Standing character or regular Cart/Train
+                    ctx.translate(px, py);
+                    ctx.rotate(angle);
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        ctx.drawImage(img, -sSize/2, -sSize, sSize, sSize);
+                    } else {
+                        ctx.fillStyle = '#ef4444';
+                        ctx.fillRect(-20, -20, 40, 20);
+                    }
                 }
                 ctx.restore();
             }
@@ -865,7 +888,6 @@
             let c = document.getElementById('analysisContent');
             
             let mass = parseFloat(document.getElementById('mass').value) || 500;
-            let v0 = parseFloat(document.getElementById('lin1_v0').value) || 0;
             let a1 = parseFloat(document.getElementById('lin1_a').value) || 3;
             let d1 = parseFloat(document.getElementById('lin1_d').value) || 90;
             let drop_h = parseFloat(document.getElementById('drop_h').value) || 60;
@@ -875,40 +897,38 @@
             let html = "";
             
             // Linear Motion 1 Output
-            let t1_dur = T1;
             html += `
                 <div class="analysis-section">
-                    <div class="analysis-header">Concept 1: Linear Motion 1</div>
+                    <div class="analysis-header">LINEAR MOTION 1</div>
                     <div class="answers-box">
-                        <p><strong>Initial Velocity:</strong> ${formatValue(v0, dp)} m/s</p>
-                        <p><strong>Acceleration:</strong> ${a1} m/s²</p>
-                        <p><strong>Time to reach ${d1}m:</strong> ${formatValue(t1_dur, dp)} s</p>
                         <p><strong>Final Velocity:</strong> ${formatValue(v1, dp)} m/s</p>
+                        <p><strong>Time to reach ${d1}m:</strong> ${formatValue(T1, dp)} s</p>
                     </div>
                 </div>
             ` + buildTableHTML("Motion Table - Linear Motion 1", 0, T1, false);
 
-            // Pure Free Fall Output (True Kinetic)
-            let t2_dur = T2 - T1;
+            // Projectile Motion - Type 1 Output
+            let t2 = Math.sqrt((2 * drop_h) / g);
+            let drop_w = v1 * t2;
+            
             html += `
                 <div class="analysis-section">
-                    <div class="analysis-header">Concept 2: Free Fall</div>
+                    <div class="analysis-header">PROJECTILE MOTION (Drop)</div>
                     <div class="answers-box">
-                        <p><strong>Drop Height:</strong> ${drop_h} m</p>
-                        <p><strong>Time as it reaches the end of drop:</strong> ${formatValue(t2_dur, dp)} s</p>
-                        <p><strong>Final Velocity (combined vectors):</strong> ${formatValue(v_trans, dp)} m/s</p>
+                        <p><strong>Horizontal Range:</strong> ${formatValue(drop_w, dp)} m</p>
+                        <p><strong>Time of Flight (end of drop):</strong> ${formatValue(t2, dp)} s</p>
+                        <p><strong>Resultant Velocity at bottom:</strong> ${formatValue(v_trans, dp)} m/s</p>
                     </div>
                 </div>
-            ` + buildTableHTML("Motion Table - Free Fall", T1, T2, false);
+            ` + buildTableHTML("Motion Table - Projectile Motion - Type 1", T1, T2, false);
 
             // Linear Motion 2 Output 
-            let t3_dur = T3 - T2;
             html += `
                 <div class="analysis-section">
-                    <div class="analysis-header">Concept 3: Linear Motion 2</div>
+                    <div class="analysis-header">LINEAR MOTION 2</div>
                     <div class="answers-box">
-                        <p><strong>Time to reach ${d2}m:</strong> ${formatValue(t3_dur, dp)} s</p>
-                        <p><strong>Final Velocity (Maintained):</strong> ${formatValue(v_trans, dp)} m/s</p>
+                        <p><strong>Final Velocity:</strong> ${formatValue(v_trans, dp)} m/s</p>
+                        <p><strong>Time to reach ${d2}m:</strong> ${formatValue(T3 - T2, dp)} s</p>
                     </div>
                 </div>
             ` + buildTableHTML("Motion Table - Linear Motion 2", T2, T3, false);
@@ -916,27 +936,35 @@
             // Circular Motion Output
             let ac = (v_trans * v_trans) / r_loop;
             let Fc = mass * ac;
-            let t4_dur = T4 - T3;
             html += `
                 <div class="analysis-section">
-                    <div class="analysis-header">Concept 4: Circular Motion</div>
+                    <div class="analysis-header">CIRCULAR MOTION</div>
                     <div class="answers-box">
                         <p><strong>Centripetal Acceleration (a_c):</strong> ${formatValue(ac, dp)} m/s²</p>
-                        <p><strong>Centripetal Force on cart (F_c):</strong> ${formatValue(Fc, dp)} N</p>
-                        <p><strong>Time for full revolution:</strong> ${formatValue(t4_dur, dp)} s</p>
+                        <p><strong>Centripetal Force (F_c):</strong> ${formatValue(Fc, dp)} N</p>
+                        <p><strong>Time for full revolution (T):</strong> ${formatValue(T4 - T3, dp)} s</p>
                     </div>
                 </div>
             ` + buildTableHTML("Motion Table - Circular Motion", T3, T4, true);
+
+            // Overall
+            html += `
+                <div class="analysis-section">
+                    <div class="analysis-header">OVERALL</div>
+                    <div class="answers-box">
+                        <p><strong>Time to complete the entire track (up to loop completion):</strong> ${formatValue(T4, dp)} s</p>
+                        <p><strong>Overall Time Simulation length (including exit track):</strong> ${formatValue(T5, dp)} s</p>
+                    </div>
+                </div>
+            `;
 
             c.innerHTML = html;
             document.getElementById('analysisModal').style.display = 'flex';
         }
 
-        // Initialization ensuring correct rendering sequences
         toggleAutoGrid(); 
         toggleTrailSettings();
         
-        // Wait a slight fraction for browser reflow before initial drawing
         setTimeout(() => {
             if(imgNight.complete) { drawStatic(); } 
             else { imgNight.onload = drawStatic; }
