@@ -250,6 +250,12 @@
                 </div>
             </div>
 
+            <!-- Follow Object Feature -->
+            <div class="checkbox-group" style="margin-top: 12px; margin-bottom: 6px;">
+                <input type="checkbox" id="checkFollow" checked>
+                <label for="checkFollow">Follow Object</label>
+            </div>
+
             <div class="section-title">Linear Motion 1</div>
             <div class="grid-inputs">
                 <div class="input-group">
@@ -469,7 +475,11 @@
         function applyZoom() {
             updateScaling();
             if (isSimulating) drawSim(); else drawStatic();
-            container.scrollLeft = Math.max(0, (container.scrollWidth - container.clientWidth) / 2);
+            
+            // Re-apply follow behavior gracefully without snapping on default
+            if (!isSimulating || !document.getElementById('checkFollow').checked) {
+                container.scrollLeft = Math.max(0, (container.scrollWidth - container.clientWidth) / 2);
+            }
         }
 
         function calculateLimits() {
@@ -563,8 +573,12 @@
             if (baseScale < 2) baseScale = 2;
             baseScale *= zoomLevel;
 
-            cssWidth = Math.max(cw, max_x * baseScale + padX * 2);
-            cssHeight = Math.max(ch, max_y * baseScale + padY * 2);
+            // Adding ample canvas padding to allow deep unclipped scrolling in all directions
+            let extraPadX = 1500 * zoomLevel;
+            let extraPadY = 1500 * zoomLevel;
+
+            cssWidth = Math.max(cw, max_x * baseScale + padX * 2 + extraPadX);
+            cssHeight = Math.max(ch, max_y * baseScale + padY * 2 + extraPadY);
 
             canvas.style.width = cssWidth + 'px';
             canvas.style.height = cssHeight + 'px';
@@ -577,8 +591,10 @@
             ctx.scale(dpr, dpr);
 
             scale = baseScale;
-            offsetX = padX;
-            offsetY = cssHeight - padY;
+            // Keeps the simulation path well-padded so out of bounds are fully scrollable
+            offsetX = padX + extraPadX / 3;
+            // Align the track ground precisely with the background's visual horizon (approx 85% down)
+            offsetY = cssHeight * 0.85; 
         }
 
         function startSimulation() {
@@ -589,8 +605,17 @@
             lastDrawTime = performance.now();
             updateScaling();
             
-            container.scrollTop = container.scrollHeight;
-            container.scrollLeft = 0;
+            // Set initial camera target position based on Follow Object Settings
+            if (document.getElementById('checkFollow').checked) {
+                let st = getState(0);
+                let px = offsetX + st.x * scale;
+                let py = offsetY - st.y * scale;
+                container.scrollLeft = px - container.clientWidth / 2;
+                container.scrollTop = py - container.clientHeight / 2;
+            } else {
+                container.scrollTop = container.scrollHeight;
+                container.scrollLeft = 0;
+            }
             
             reqAnimFrame = requestAnimationFrame(updateSim);
         }
@@ -623,7 +648,7 @@
 
             if (t >= T5) {
                 t = T5;
-                isSimulating = false;
+                isSimulating = false; // Finished: Let camera pan freely again
             }
 
             drawSim();
@@ -705,6 +730,8 @@
             else if (bgVal === 'sunny') bgImg = imgSunny;
 
             if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+                // Image naturally stretches over the new huge scrollable boundaries
+                // avoiding any black clipped corners and bounds completely.
                 ctx.drawImage(bgImg, 0, 0, cssWidth, cssHeight);
             }
 
@@ -780,6 +807,12 @@
 
                 let px = offsetX + st.x * scale;
                 let py = offsetY - st.y * scale;
+
+                // Follow Object System (Active only when simulating)
+                if (isSimulating && document.getElementById('checkFollow').checked) {
+                    container.scrollLeft = px - container.clientWidth / 2;
+                    container.scrollTop = py - container.clientHeight / 2;
+                }
 
                 let spriteType = document.getElementById('spriteSelect').value;
                 let isCharacter = ['knuckles', 'shadow', 'sonic'].includes(spriteType);
