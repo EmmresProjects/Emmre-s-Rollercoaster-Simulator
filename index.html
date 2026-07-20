@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Emmre's Rollercoaster Simulator</title>
     <style>
         :root {
@@ -33,6 +33,38 @@
             touch-action: manipulation;
             user-select: none;
         }
+
+        /* Loading Screen Overlay */
+        #loadingScreen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--bg-color);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.4s ease;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loading-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
+            letter-spacing: 1px;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
 
         select, option, input { user-select: text; }
 
@@ -149,9 +181,10 @@
             min-height: 600px;
             max-height: 75vh;
             position: relative;
-            overflow: auto;
+            overflow: auto; /* Handles native panning */
             box-shadow: inset 0 0 30px rgba(0,0,0,0.6);
             display: block;
+            touch-action: pan-x pan-y; /* Improves scroll behaviour on mobile */
         }
         canvas { display: block; transform-origin: top left; }
 
@@ -163,6 +196,7 @@
             padding: 12px;
             border-radius: 12px;
             border: 1px solid var(--border);
+            flex-wrap: wrap;
         }
 
         .zoom-controls button {
@@ -171,12 +205,15 @@
             background: #334155;
             font-size: 14px;
             box-shadow: none;
+            flex: 1;
+            min-width: 100px;
         }
-        .zoom-controls button:hover { background: #475569; }
+        .zoom-controls button:hover { background: #475569; transform: none; }
+        .zoom-controls button:active { transform: scale(0.95); }
 
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.9); z-index: 1000;
+            background: rgba(0, 0, 0, 0.9); z-index: 10000;
             justify-content: center; align-items: center; padding: 20px;
             backdrop-filter: blur(8px);
         }
@@ -215,6 +252,11 @@
 </head>
 <body>
 
+    <div id="loadingScreen">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Assets... <span id="loadProgress">0%</span></div>
+    </div>
+
     <div class="top-bar">
         <h1>Emmre's Rollercoaster Simulator</h1>
     </div>
@@ -228,7 +270,7 @@
                 <select id="bgSelect" onchange="if(!isSimulating) drawStatic();">
                     <option value="night">Night Sky</option>
                     <option value="afternoon">Afternoon</option>
-                    <option value="sunny"selected>Sunny</option>
+                    <option value="sunny" selected>Sunny</option>
                 </select>
             </div>
 
@@ -250,7 +292,6 @@
                 </div>
             </div>
 
-            <!-- Follow Object Feature -->
             <div class="checkbox-group" style="margin-top: 12px; margin-bottom: 6px;">
                 <input type="checkbox" id="checkFollow" checked>
                 <label for="checkFollow">Follow Object</label>
@@ -408,23 +449,23 @@
         const ctx = canvas.getContext('2d');
         const g = 9.8; 
 
-        // Load Original Sprites
-        const imgTrain = new Image(); imgTrain.src = 'Materials/Sprites_Train(1000x1000).png'; 
-        const imgCart = new Image(); imgCart.src = 'Materials/Sprites_Cart(1000x1000).png'; 
+        // Asset Management
+        const assetPaths = {
+            train: 'Materials/Sprites_Train(1000x1000).png',
+            cart: 'Materials/Sprites_Cart(1000x1000).png',
+            knuckles: 'Materials/Sprites_Knuckles(1000x1000).png',
+            knucklesBall: 'Materials/Sprites_Knuckles_Ball(1000x1000).png',
+            shadow: 'Materials/Sprites_Shadow(1000x1000).png',
+            shadowBall: 'Materials/Sprites_Shadow_Ball(1000x1000).png',
+            sonic: 'Materials/Sprites_Sonic(1000x1000).png',
+            sonicBall: 'Materials/Sprites_Sonic_Ball(1000x1000).png',
+            night: 'Materials/BG_Night(1536x1024).png',
+            afternoon: 'Materials/BG_Afternoon(1536x1024).png',
+            sunny: 'Materials/BG_Sunny(1536x1024).png'
+        };
+        const images = {};
 
-        // Load New Character Sprites
-        const imgKnuckles = new Image(); imgKnuckles.src = 'Materials/Sprites_Knuckles(1000x1000).png';
-        const imgKnucklesBall = new Image(); imgKnucklesBall.src = 'Materials/Sprites_Knuckles_Ball(1000x1000).png';
-        const imgShadow = new Image(); imgShadow.src = 'Materials/Sprites_Shadow(1000x1000).png';
-        const imgShadowBall = new Image(); imgShadowBall.src = 'Materials/Sprites_Shadow_Ball(1000x1000).png';
-        const imgSonic = new Image(); imgSonic.src = 'Materials/Sprites_Sonic(1000x1000).png';
-        const imgSonicBall = new Image(); imgSonicBall.src = 'Materials/Sprites_Sonic_Ball(1000x1000).png';
-
-        // Load Backgrounds
-        const imgNight = new Image(); imgNight.src = 'Materials/BG_Night(1536x1024).png';
-        const imgAfternoon = new Image(); imgAfternoon.src = 'Materials/BG_Afternoon(1536x1024).png';
-        const imgSunny = new Image(); imgSunny.src = 'Materials/BG_Sunny(1536x1024).png';
-
+        // Application State
         let isSimulating = false;
         let t = 0;
         let trails = [];
@@ -444,6 +485,142 @@
         let cssWidth = 0, cssHeight = 0;
         let zoomLevel = 1.0;
 
+        // Ensure Preloader loads all assets first before executing rendering script
+        window.onload = () => {
+            let loadedCount = 0;
+            const assetKeys = Object.keys(assetPaths);
+            const totalAssets = assetKeys.length;
+
+            if (totalAssets === 0) {
+                initApp();
+                return;
+            }
+
+            const promises = assetKeys.map(key => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        loadedCount++;
+                        document.getElementById('loadProgress').innerText = Math.round((loadedCount / totalAssets) * 100) + '%';
+                        images[key] = img;
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        console.warn('Failed to load: ' + assetPaths[key]);
+                        loadedCount++; // We still increment to avoid infinite loading screens if a file is missing
+                        document.getElementById('loadProgress').innerText = Math.round((loadedCount / totalAssets) * 100) + '%';
+                        images[key] = img;
+                        resolve();
+                    };
+                    img.src = assetPaths[key];
+                });
+            });
+
+            Promise.all(promises).then(() => {
+                const loader = document.getElementById('loadingScreen');
+                loader.style.opacity = '0';
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                    initApp();
+                }, 400);
+            });
+        };
+
+        function initApp() {
+            toggleAutoGrid(); 
+            toggleTrailSettings();
+            drawStatic();
+            setupTouchAndWheelZoom();
+            setTimeout(focusOnStart, 100); // Focus on the object directly at startup
+        }
+
+        // Centers the viewport on the starting position of the object
+        function focusOnStart() {
+            if (T1 === undefined) calculateLimits();
+            let st = getState(0);
+            let px = offsetX + st.x * scale;
+            let py = offsetY - st.y * scale;
+            container.scrollLeft = px - container.clientWidth / 2;
+            container.scrollTop = py - container.clientHeight / 2;
+        }
+
+        // Better Zooming Mechanism - Maintains the position being scaled
+        function applyZoom(zoomCenterRatioX = null, zoomCenterRatioY = null) {
+            let oldW = cssWidth || container.clientWidth;
+            let oldH = cssHeight || container.clientHeight;
+
+            // Find scroll percentage ratio relative to center of viewport
+            let cx = zoomCenterRatioX !== null ? zoomCenterRatioX : (container.scrollLeft + container.clientWidth / 2) / oldW;
+            let cy = zoomCenterRatioY !== null ? zoomCenterRatioY : (container.scrollTop + container.clientHeight / 2) / oldH;
+
+            updateScaling(); // Adjusts cssWidth and cssHeight based on new zoomLevel
+
+            if (isSimulating) drawSim(); else drawStatic();
+            
+            // Re-apply viewport centering seamlessly
+            if (!isSimulating || !document.getElementById('checkFollow').checked) {
+                container.scrollLeft = (cx * cssWidth) - (container.clientWidth / 2);
+                container.scrollTop = (cy * cssHeight) - (container.clientHeight / 2);
+            }
+        }
+
+        function zoomIn() { zoomLevel = Math.min(zoomLevel * 1.25, 5.0); applyZoom(); }
+        function zoomOut() { zoomLevel = Math.max(zoomLevel * 0.8, 0.4); applyZoom(); }
+        function resetZoom() { zoomLevel = 1.0; applyZoom(); focusOnStart(); }
+
+        // Touch & Wheel Listeners for robust Cross-Platform Scaling
+        function setupTouchAndWheelZoom() {
+            // Mouse Wheel / Trackpad (Ctrl + Scroll)
+            container.addEventListener('wheel', (e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    let rect = container.getBoundingClientRect();
+                    let mouseX = e.clientX - rect.left + container.scrollLeft;
+                    let mouseY = e.clientY - rect.top + container.scrollTop;
+                    
+                    let cx = mouseX / cssWidth;
+                    let cy = mouseY / cssHeight;
+
+                    if (e.deltaY < 0) zoomLevel = Math.min(zoomLevel * 1.1, 5.0); // Zoom In
+                    else zoomLevel = Math.max(zoomLevel * 0.9, 0.4); // Zoom Out
+                    
+                    applyZoom(cx, cy);
+                }
+            }, { passive: false });
+
+            // Touch Screen Pinch-To-Zoom (Tablets, Androids, iOS)
+            let initialPinchDist = null;
+            let initialZoom = 1.0;
+            container.addEventListener('touchstart', (e) => {
+                if(e.touches.length === 2) {
+                    initialPinchDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    initialZoom = zoomLevel;
+                }
+            }, { passive: true });
+
+            container.addEventListener('touchmove', (e) => {
+                if(e.touches.length === 2 && initialPinchDist) {
+                    e.preventDefault(); // Stop native page zooming
+                    let dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    let scaleChange = dist / initialPinchDist;
+                    zoomLevel = Math.max(0.4, Math.min(initialZoom * scaleChange, 5.0));
+                    
+                    let rect = container.getBoundingClientRect();
+                    let touchCX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left + container.scrollLeft;
+                    let touchCY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top + container.scrollTop;
+                    
+                    applyZoom(touchCX / cssWidth, touchCY / cssHeight);
+                }
+            }, { passive: false });
+        }
+
+        // Utility Methods
         function customRound(num, dp, mode) {
             if (isNaN(num)) return 0;
             const factor = Math.pow(10, dp);
@@ -468,20 +645,7 @@
             document.getElementById('gridY').disabled = auto;
         }
 
-        function zoomIn() { zoomLevel = Math.min(zoomLevel * 1.25, 5.0); applyZoom(); }
-        function zoomOut() { zoomLevel = Math.max(zoomLevel * 0.8, 0.4); applyZoom(); }
-        function resetZoom() { zoomLevel = 1.0; applyZoom(); }
-
-        function applyZoom() {
-            updateScaling();
-            if (isSimulating) drawSim(); else drawStatic();
-            
-            // Re-apply follow behavior gracefully without snapping on default
-            if (!isSimulating || !document.getElementById('checkFollow').checked) {
-                container.scrollLeft = Math.max(0, (container.scrollWidth - container.clientWidth) / 2);
-            }
-        }
-
+        // Math Bounds calculation
         function calculateLimits() {
             let a1 = parseFloat(document.getElementById('lin1_a').value) || 3;
             let d1 = parseFloat(document.getElementById('lin1_d').value) || 90;
@@ -489,35 +653,28 @@
             let d2 = parseFloat(document.getElementById('lin2_d').value) || 50;
             let loop_r = parseFloat(document.getElementById('loop_r').value) || 20;
             
-            // Phase 1 (Linear 1) - Accelerated from 0 m/s
+            // Phase 1 (Linear 1)
             let t1 = Math.sqrt((2 * d1) / a1);
             v1 = a1 * t1;
-            T1 = t1;
-            Y1 = drop_h; 
-            X1 = d1;
+            T1 = t1; Y1 = drop_h; X1 = d1;
             
-            // Phase 2 (Projectile Motion Type 1 - Laws of Motion)
+            // Phase 2 (Projectile)
             let t2 = Math.sqrt((2 * drop_h) / g); 
             let drop_w = v1 * t2; 
             let vy2 = g * t2; 
             v_trans = Math.sqrt(v1*v1 + vy2*vy2);
             
-            T2 = T1 + t2;
-            X2 = X1 + drop_w;
-            Y2 = 0;
+            T2 = T1 + t2; X2 = X1 + drop_w; Y2 = 0;
             
-            // Phase 3 (Linear 2) - Inherited Resultant Velocity
+            // Phase 3 (Linear 2)
             let t3 = d2 / v_trans;
-            T3 = T2 + t3;
-            X3 = X2 + d2;
-            Y3 = 0;
+            T3 = T2 + t3; X3 = X2 + d2; Y3 = 0;
             
-            // Phase 4 (Circular Motion Loop)
+            // Phase 4 (Circular)
             let t4 = (2 * Math.PI * loop_r) / v_trans;
-            T4 = T3 + t4;
-            X4 = X3; // X center of loop
+            T4 = T3 + t4; X4 = X3; 
             
-            // Phase 5 (Forward Exit off track)
+            // Phase 5 (Forward Exit)
             T5 = T4 + (50 / v_trans); 
             X5 = X4 + 50;
 
@@ -531,32 +688,19 @@
             let loop_r = parseFloat(document.getElementById('loop_r').value) || 20;
 
             if (time <= T1) {
-                // Linear 1
                 return { x: 0.5 * a1 * time * time, y: Y1, phase: 1 };
-            } 
-            else if (time <= T2) {
-                // Projectile Motion Type 1
+            } else if (time <= T2) {
                 let dt = time - T1;
-                let x = X1 + v1 * dt;
-                let y = Y1 - 0.5 * g * dt * dt;
-                return { x: x, y: Math.max(0, y), phase: 2 };
-            }
-            else if (time <= T3) {
-                // Linear 2
+                return { x: X1 + v1 * dt, y: Math.max(0, Y1 - 0.5 * g * dt * dt), phase: 2 };
+            } else if (time <= T3) {
                 let dt = time - T2;
                 return { x: X2 + v_trans * dt, y: 0, phase: 3 };
-            }
-            else if (time <= T4) {
-                // Circular Loop (Vertical)
+            } else if (time <= T4) {
                 let dt = time - T3;
                 let omega_c = v_trans / loop_r;
-                let x = X4 + loop_r * Math.sin(omega_c * dt);
-                let y = loop_r - loop_r * Math.cos(omega_c * dt);
                 let deg = (omega_c * dt * 180 / Math.PI) % 360;
-                return { x: x, y: y, phase: 4, deg: deg };
-            }
-            else {
-                // Forward Out of bounds
+                return { x: X4 + loop_r * Math.sin(omega_c * dt), y: loop_r - loop_r * Math.cos(omega_c * dt), phase: 4, deg: deg };
+            } else {
                 let dt = time - T4;
                 return { x: X4 + v_trans * dt, y: 0, phase: 5 };
             }
@@ -573,7 +717,6 @@
             if (baseScale < 2) baseScale = 2;
             baseScale *= zoomLevel;
 
-            // Adding ample canvas padding to allow deep unclipped scrolling in all directions
             let extraPadX = 1500 * zoomLevel;
             let extraPadY = 1500 * zoomLevel;
 
@@ -591,10 +734,8 @@
             ctx.scale(dpr, dpr);
 
             scale = baseScale;
-            // Keeps the simulation path well-padded so out of bounds are fully scrollable
             offsetX = padX + extraPadX / 3;
-            // Align the track ground precisely with the background's visual horizon (approx 85% down)
-            offsetY = cssHeight * 0.85; 
+            offsetY = cssHeight - padY - extraPadY / 2;
         }
 
         function startSimulation() {
@@ -605,28 +746,23 @@
             lastDrawTime = performance.now();
             updateScaling();
             
-            // Set initial camera target position based on Follow Object Settings
             if (document.getElementById('checkFollow').checked) {
                 let st = getState(0);
-                let px = offsetX + st.x * scale;
-                let py = offsetY - st.y * scale;
-                container.scrollLeft = px - container.clientWidth / 2;
-                container.scrollTop = py - container.clientHeight / 2;
+                container.scrollLeft = (offsetX + st.x * scale) - container.clientWidth / 2;
+                container.scrollTop = (offsetY - st.y * scale) - container.clientHeight / 2;
             } else {
                 container.scrollTop = container.scrollHeight;
                 container.scrollLeft = 0;
             }
-            
             reqAnimFrame = requestAnimationFrame(updateSim);
         }
 
         function resetSimulation() {
             cancelAnimationFrame(reqAnimFrame);
             isSimulating = false;
-            t = 0;
-            trails = [];
-            nextTrailTime = 0;
+            t = 0; trails = []; nextTrailTime = 0;
             drawStatic();
+            focusOnStart();
         }
 
         function updateSim(timestamp) {
@@ -648,7 +784,7 @@
 
             if (t >= T5) {
                 t = T5;
-                isSimulating = false; // Finished: Let camera pan freely again
+                isSimulating = false; 
             }
 
             drawSim();
@@ -708,8 +844,7 @@
             ctx.beginPath();
             ctx.strokeStyle = color;
             ctx.lineWidth = width;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
             
             let st = getState(0);
             ctx.moveTo(offsetX + st.x * scale, offsetY - st.y * scale);
@@ -724,15 +859,25 @@
             ctx.clearRect(0, 0, cssWidth, cssHeight);
 
             let bgVal = document.getElementById('bgSelect').value;
-            let bgImg = null;
-            if (bgVal === 'night') bgImg = imgNight;
-            else if (bgVal === 'afternoon') bgImg = imgAfternoon;
-            else if (bgVal === 'sunny') bgImg = imgSunny;
+            let bgImg = images[bgVal]; 
 
             if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
-                // Image naturally stretches over the new huge scrollable boundaries
-                // avoiding any black clipped corners and bounds completely.
-                ctx.drawImage(bgImg, 0, 0, cssWidth, cssHeight);
+                // Split background drawing so the track's floor (offsetY) matches the image's visual horizon
+                const horizonRatio = 0.85; // Roughly 85% down from the top based on provided images
+                const srcHorizonY = bgImg.naturalHeight * horizonRatio;
+                const srcGroundHeight = bgImg.naturalHeight - srcHorizonY;
+                
+                // Draw sky mapped from canvas top down to offsetY
+                ctx.drawImage(bgImg, 
+                    0, 0, bgImg.naturalWidth, srcHorizonY, 
+                    0, 0, cssWidth, offsetY);
+                
+                // Draw ground mapped from offsetY down to the bottom of the canvas
+                if (cssHeight > offsetY) {
+                    ctx.drawImage(bgImg, 
+                        0, srcHorizonY, bgImg.naturalWidth, srcGroundHeight, 
+                        0, offsetY, cssWidth, cssHeight - offsetY);
+                }
             }
 
             drawGridAndAxes();
@@ -760,55 +905,39 @@
                 let px = offsetX + tr.x * scale;
                 let py = offsetY - tr.y * scale;
 
-                ctx.beginPath();
-                ctx.arc(px, py, 4, 0, Math.PI*2);
-                ctx.fillStyle = '#facc15';
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2);
+                ctx.fillStyle = '#facc15'; ctx.fill();
 
                 let dynamicVSpace = vSpaceStart + (i % (vSpaceRepeat + 1)) * vSpaceInc;
                 let textX = px + 10;
                 let textY = py - dynamicVSpace - 10;
 
-                ctx.beginPath();
-                ctx.moveTo(px, py - 5);
-                ctx.lineTo(px, textY + 5);
-                ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(px, py - 5); ctx.lineTo(px, textY + 5);
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
 
                 let txtX = `${formatValue(tr.x, dp)} m (H)`;
                 let txtY = `${formatValue(tr.y, dp)} m (V)`;
                 let txtT = `${formatValue(tr.t, dp)}s`;
                 
                 let outStr = "";
-                if (tr.phase === 4 && tr.deg !== undefined) {
-                    outStr = `${txtT}, ${formatValue(tr.deg, 1)}°`;
-                } else if (tr.phase === 1 || tr.phase === 3 || tr.phase === 5) {
-                    outStr = `${txtX}, ${txtT}`;
-                } else {
-                    outStr = `${txtX}, ${txtY}, ${txtT}`;
-                }
+                if (tr.phase === 4 && tr.deg !== undefined) outStr = `${txtT}, ${formatValue(tr.deg, 1)}°`;
+                else if (tr.phase === 1 || tr.phase === 3 || tr.phase === 5) outStr = `${txtX}, ${txtT}`;
+                else outStr = `${txtX}, ${txtY}, ${txtT}`;
 
                 let textWidth = ctx.measureText(outStr).width;
                 ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
                 ctx.fillRect(textX - 4, textY - fontSize, textWidth + 8, fontSize*2);
                 
-                ctx.fillStyle = '#fefce8';
-                ctx.fillText(outStr, textX, textY);
+                ctx.fillStyle = '#fefce8'; ctx.fillText(outStr, textX, textY);
             }
 
-            // Draw Object / Train / Cart / Characters
             if (t > 0 || (!isSimulating && t===0)) {
                 let st = getState(t);
                 let st2 = getState(Math.min(t + 0.01, T5));
-                let vx = st2.x - st.x;
-                let vy = -(st2.y - st.y); 
-                let angle = Math.atan2(vy, vx);
-
+                let angle = Math.atan2(-(st2.y - st.y), st2.x - st.x);
                 let px = offsetX + st.x * scale;
                 let py = offsetY - st.y * scale;
 
-                // Follow Object System (Active only when simulating)
                 if (isSimulating && document.getElementById('checkFollow').checked) {
                     container.scrollLeft = px - container.clientWidth / 2;
                     container.scrollTop = py - container.clientHeight / 2;
@@ -816,45 +945,31 @@
 
                 let spriteType = document.getElementById('spriteSelect').value;
                 let isCharacter = ['knuckles', 'shadow', 'sonic'].includes(spriteType);
-                
                 let img = null;
-                let sSize = 45; // Fixed size fit for tracks
+                let sSize = 45; 
                 let isBall = false;
 
                 if (isCharacter) {
                     isBall = (isSimulating && t > 0);
-                    if (spriteType === 'knuckles') img = isBall ? imgKnucklesBall : imgKnuckles;
-                    else if (spriteType === 'shadow') img = isBall ? imgShadowBall : imgShadow;
-                    else if (spriteType === 'sonic') img = isBall ? imgSonicBall : imgSonic;
+                    img = images[spriteType + (isBall ? 'Ball' : '')];
                 } else {
-                    img = spriteType === 'train' ? imgTrain : imgCart;
+                    img = images[spriteType];
                 }
                 
                 ctx.save();
-                
                 if (isCharacter && isBall) {
-                    // Ball rolling dynamically on track (FIXED TRANSFORMATION ORDER)
-                    ctx.translate(px, py);
-                    ctx.rotate(angle); // Rotate to track trajectory first
-                    ctx.translate(0, -sSize/2); // Offset ball to sit exactly on the path's surface
-                    
-                    let spinAngle = t * 50; // Rapid spin mapped to time
-                    ctx.rotate(spinAngle);
-                    if (img && img.complete && img.naturalWidth > 0) {
-                        ctx.drawImage(img, -sSize/2, -sSize/2, sSize, sSize);
-                    } else {
+                    ctx.translate(px, py); ctx.rotate(angle); ctx.translate(0, -sSize/2); 
+                    ctx.rotate(t * 50);
+                    if (img && img.complete) ctx.drawImage(img, -sSize/2, -sSize/2, sSize, sSize);
+                    else {
                         ctx.fillStyle = spriteType === 'sonic' ? '#3b82f6' : '#ef4444';
                         ctx.beginPath(); ctx.arc(0, 0, sSize/2, 0, Math.PI*2); ctx.fill();
                     }
                 } else {
-                    // Standing character or regular Cart/Train
-                    ctx.translate(px, py);
-                    ctx.rotate(angle);
-                    if (img && img.complete && img.naturalWidth > 0) {
-                        ctx.drawImage(img, -sSize/2, -sSize, sSize, sSize);
-                    } else {
-                        ctx.fillStyle = '#ef4444';
-                        ctx.fillRect(-20, -20, 40, 20);
+                    ctx.translate(px, py); ctx.rotate(angle);
+                    if (img && img.complete) ctx.drawImage(img, -sSize/2, -sSize, sSize, sSize);
+                    else {
+                        ctx.fillStyle = '#ef4444'; ctx.fillRect(-20, -20, 40, 20);
                     }
                 }
                 ctx.restore();
@@ -863,15 +978,11 @@
 
         function drawStatic() {
             let oldT5 = typeof T5 !== 'undefined' ? T5 : 0;
-            
             calculateLimits(); 
             
             if (!isSimulating && t > 0) {
-                if (t >= oldT5 - 0.1) {
-                    t = T5; 
-                } else {
-                    t = Math.min(t, T5);
-                }
+                if (t >= oldT5 - 0.1) t = T5; 
+                else t = Math.min(t, T5);
                 regenerateTrails();
             }
             
@@ -884,126 +995,74 @@
                 (parseFloat(document.getElementById('inputInterval').value) || 0.5) : 0.5;
             let dp = parseInt(document.getElementById('decimalPlaces').value) || 2;
             
-            let html = `
-                <div class="analysis-section">
-                    <div class="analysis-header">${title}</div>
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Time (s)</th>
-                                    <th>Position X (m) (H)</th>
-                                    <th>Position Y (m) (V)</th>
-                                    ${isLoop ? '<th>Angle (°)</th>' : ''}
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
+            let html = `<div class="analysis-section"><div class="analysis-header">${title}</div><div style="overflow-x: auto;"><table>
+                            <thead><tr><th>Time (s)</th><th>Position X (m) (H)</th><th>Position Y (m) (V)</th>
+                            ${isLoop ? '<th>Angle (°)</th>' : ''}</tr></thead><tbody>`;
             
             for(let currT = tStart; currT <= tEnd + 0.001; currT += interval) {
                 let st = getState(currT);
-                html += `
-                    <tr>
-                        <td>${formatValue(currT, dp)}</td>
-                        <td>${formatValue(st.x, dp)} (H)</td>
-                        <td>${formatValue(st.y, dp)} (V)</td>
-                        ${isLoop ? `<td>${st.deg !== undefined ? formatValue(st.deg, 1) + '°' : '-'}</td>` : ''}
-                    </tr>
-                `;
+                html += `<tr><td>${formatValue(currT, dp)}</td><td>${formatValue(st.x, dp)} (H)</td><td>${formatValue(st.y, dp)} (V)</td>
+                        ${isLoop ? `<td>${st.deg !== undefined ? formatValue(st.deg, 1) + '°' : '-'}</td>` : ''}</tr>`;
             }
-            html += `</tbody></table></div></div>`;
-            return html;
+            return html + `</tbody></table></div></div>`;
         }
 
         function showAnalysis() {
             if (T1 === undefined) calculateLimits();
             let dp = parseInt(document.getElementById('decimalPlaces').value) || 2;
-            let c = document.getElementById('analysisContent');
-            
             let mass = parseFloat(document.getElementById('mass').value) || 500;
-            let a1 = parseFloat(document.getElementById('lin1_a').value) || 3;
             let d1 = parseFloat(document.getElementById('lin1_d').value) || 90;
             let drop_h = parseFloat(document.getElementById('drop_h').value) || 60;
             let d2 = parseFloat(document.getElementById('lin2_d').value) || 50;
             let r_loop = parseFloat(document.getElementById('loop_r').value) || 20;
 
-            let html = "";
-            
-            // Linear Motion 1 Output
-            html += `
+            let html = `
                 <div class="analysis-section">
                     <div class="analysis-header">LINEAR MOTION 1</div>
-                    <div class="answers-box">
-                        <p><strong>Final Velocity:</strong> ${formatValue(v1, dp)} m/s</p>
-                        <p><strong>Time to reach ${d1}m:</strong> ${formatValue(T1, dp)} s</p>
-                    </div>
+                    <div class="answers-box"><p><strong>Final Velocity:</strong> ${formatValue(v1, dp)} m/s</p><p><strong>Time to reach ${d1}m:</strong> ${formatValue(T1, dp)} s</p></div>
                 </div>
             ` + buildTableHTML("Motion Table - Linear Motion 1", 0, T1, false);
 
-            // Projectile Motion - Type 1 Output
             let t2 = Math.sqrt((2 * drop_h) / g);
             let drop_w = v1 * t2;
             
             html += `
                 <div class="analysis-section">
                     <div class="analysis-header">PROJECTILE MOTION (Drop)</div>
-                    <div class="answers-box">
-                        <p><strong>Horizontal Range:</strong> ${formatValue(drop_w, dp)} m</p>
-                        <p><strong>Time of Flight (end of drop):</strong> ${formatValue(t2, dp)} s</p>
-                        <p><strong>Resultant Velocity at bottom:</strong> ${formatValue(v_trans, dp)} m/s</p>
-                    </div>
+                    <div class="answers-box"><p><strong>Horizontal Range:</strong> ${formatValue(drop_w, dp)} m</p><p><strong>Time of Flight (end of drop):</strong> ${formatValue(t2, dp)} s</p><p><strong>Resultant Velocity at bottom:</strong> ${formatValue(v_trans, dp)} m/s</p></div>
                 </div>
             ` + buildTableHTML("Motion Table - Projectile Motion - Type 1", T1, T2, false);
 
-            // Linear Motion 2 Output 
             html += `
                 <div class="analysis-section">
                     <div class="analysis-header">LINEAR MOTION 2</div>
-                    <div class="answers-box">
-                        <p><strong>Final Velocity:</strong> ${formatValue(v_trans, dp)} m/s</p>
-                        <p><strong>Time to reach ${d2}m:</strong> ${formatValue(T3 - T2, dp)} s</p>
-                    </div>
+                    <div class="answers-box"><p><strong>Final Velocity:</strong> ${formatValue(v_trans, dp)} m/s</p><p><strong>Time to reach ${d2}m:</strong> ${formatValue(T3 - T2, dp)} s</p></div>
                 </div>
             ` + buildTableHTML("Motion Table - Linear Motion 2", T2, T3, false);
 
-            // Circular Motion Output
             let ac = (v_trans * v_trans) / r_loop;
             let Fc = mass * ac;
             html += `
                 <div class="analysis-section">
                     <div class="analysis-header">CIRCULAR MOTION</div>
-                    <div class="answers-box">
-                        <p><strong>Centripetal Acceleration (a_c):</strong> ${formatValue(ac, dp)} m/s²</p>
-                        <p><strong>Centripetal Force (F_c):</strong> ${formatValue(Fc, dp)} N</p>
-                        <p><strong>Time for full revolution (T):</strong> ${formatValue(T4 - T3, dp)} s</p>
-                    </div>
+                    <div class="answers-box"><p><strong>Centripetal Acceleration (a_c):</strong> ${formatValue(ac, dp)} m/s²</p><p><strong>Centripetal Force (F_c):</strong> ${formatValue(Fc, dp)} N</p><p><strong>Time for full revolution (T):</strong> ${formatValue(T4 - T3, dp)} s</p></div>
                 </div>
             ` + buildTableHTML("Motion Table - Circular Motion", T3, T4, true);
 
-            // Overall
             html += `
                 <div class="analysis-section">
                     <div class="analysis-header">OVERALL</div>
-                    <div class="answers-box">
-                        <p><strong>Time to complete the entire track (up to loop completion):</strong> ${formatValue(T4, dp)} s</p>
-                        <p><strong>Overall Time Simulation length (including exit track):</strong> ${formatValue(T5, dp)} s</p>
-                    </div>
+                    <div class="answers-box"><p><strong>Time to complete entire track (up to loop):</strong> ${formatValue(T4, dp)} s</p><p><strong>Overall Time Simulation length:</strong> ${formatValue(T5, dp)} s</p></div>
                 </div>
             `;
 
-            c.innerHTML = html;
+            document.getElementById('analysisContent').innerHTML = html;
             document.getElementById('analysisModal').style.display = 'flex';
         }
 
-        toggleAutoGrid(); 
-        toggleTrailSettings();
-        
-        setTimeout(() => {
-            if(imgNight.complete) { drawStatic(); } 
-            else { imgNight.onload = drawStatic; }
-        }, 150); 
-        
-        window.addEventListener('resize', drawStatic);
+        window.addEventListener('resize', () => {
+            if (images['night']) drawStatic(); 
+        });
     </script>
 </body>
 </html>
