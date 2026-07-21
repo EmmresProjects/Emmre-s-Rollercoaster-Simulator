@@ -994,11 +994,33 @@
                             <thead><tr><th>Time (s)</th><th>Position X (m) (H)</th><th>Position Y (m) (V)</th>
                             ${isLoop ? '<th>Angle (°)</th>' : ''}</tr></thead><tbody>`;
             
+            let lastT = -1;
             for(let currT = tStart; currT <= tEnd + 0.001; currT += interval) {
                 let st = getState(currT);
+                let degVal = "-";
+                
+                if (isLoop && st.deg !== undefined) {
+                    // Force the very last calculation output to precisely read 360 to prevent the math logic from resolving mod to 0.
+                    if (Math.abs(currT - tEnd) < 0.005) {
+                        degVal = formatValue(360, 1) + '°';
+                    } else {
+                        degVal = formatValue(st.deg, 1) + '°';
+                    }
+                }
+
                 html += `<tr><td>${formatValue(currT, dp)}</td><td>${formatValue(st.x, dp)} (H)</td><td>${formatValue(st.y, dp)} (V)</td>
-                        ${isLoop ? `<td>${st.deg !== undefined ? formatValue(st.deg, 1) + '°' : '-'}</td>` : ''}</tr>`;
+                        ${isLoop ? `<td>${degVal}</td>` : ''}</tr>`;
+                lastT = currT;
             }
+
+            // Explicitly force the final 360-degree point onto the table if the interval math skipped right over it
+            if (isLoop && Math.abs(lastT - tEnd) > 0.005) {
+                let st = getState(tEnd);
+                let degVal = formatValue(360, 1) + '°';
+                html += `<tr><td>${formatValue(tEnd, dp)}</td><td>${formatValue(st.x, dp)} (H)</td><td>${formatValue(st.y, dp)} (V)</td>
+                        <td>${degVal}</td></tr>`;
+            }
+
             return html + `</tbody></table></div></div>`;
         }
 
