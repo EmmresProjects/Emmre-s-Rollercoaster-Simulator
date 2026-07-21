@@ -470,6 +470,7 @@
         let t = 0;
         let trails = [];
         let nextTrailTime = 0;
+        let addedT4Trail = false; // Tracks if exact 360 loop exit was appended
         let reqAnimFrame, lastDrawTime = 0;
         const timeScale = 1.0; 
 
@@ -741,7 +742,7 @@
         function startSimulation() {
             cancelAnimationFrame(reqAnimFrame);
             calculateLimits();
-            t = 0; trails = []; nextTrailTime = 0;
+            t = 0; trails = []; nextTrailTime = 0; addedT4Trail = false;
             isSimulating = true;
             lastDrawTime = performance.now();
             updateScaling();
@@ -755,7 +756,7 @@
         function resetSimulation() {
             cancelAnimationFrame(reqAnimFrame);
             isSimulating = false;
-            t = 0; trails = []; nextTrailTime = 0;
+            t = 0; trails = []; nextTrailTime = 0; addedT4Trail = false;
             drawStatic();
             focusOnStart();
         }
@@ -771,9 +772,28 @@
 
             if (showTrail) {
                 while (t >= nextTrailTime && nextTrailTime <= T5) {
+                    
+                    // Force inject Exact 360 Degree frame if bypassed
+                    if (nextTrailTime > T4 && !addedT4Trail) {
+                        let st4 = getState(T4);
+                        trails.push({ t: T4, ...st4 });
+                        addedT4Trail = true;
+                    }
+                    
                     let st = getState(nextTrailTime);
                     trails.push({ t: nextTrailTime, ...st });
+                    
+                    // Mark if we perfectly landed on the 360 degree mark
+                    if (Math.abs(nextTrailTime - T4) < 0.001) addedT4Trail = true;
+                    
                     nextTrailTime += intervalTime;
+                }
+                
+                // Catch for large jumps/final intervals
+                if (t >= T4 && !addedT4Trail) {
+                    let st4 = getState(T4);
+                    trails.push({ t: T4, ...st4 });
+                    addedT4Trail = true;
                 }
             }
 
@@ -790,12 +810,33 @@
             trails = [];
             let intervalTime = parseFloat(document.getElementById('inputInterval').value) || 0.5;
             let tempTime = 0;
+            addedT4Trail = false;
             
             while (tempTime <= t) {
+                
+                // Force inject Exact 360 Degree frame if bypassed
+                if (tempTime > T4 && !addedT4Trail) {
+                    let st4 = getState(T4);
+                    trails.push({ t: T4, ...st4 });
+                    addedT4Trail = true;
+                }
+                
                 let st = getState(tempTime);
                 trails.push({ t: tempTime, ...st });
+                
+                // Mark if we perfectly landed on the 360 degree mark
+                if (Math.abs(tempTime - T4) < 0.001) addedT4Trail = true;
+                
                 tempTime += intervalTime;
             }
+            
+            // Catch for large jumps/final intervals
+            if (t >= T4 && !addedT4Trail) {
+                let st4 = getState(T4);
+                trails.push({ t: T4, ...st4 });
+                addedT4Trail = true;
+            }
+            
             nextTrailTime = tempTime;
         }
 
@@ -915,7 +956,11 @@
                 let txtT = `${formatValue(tr.t, dp)}s`;
                 
                 let outStr = "";
-                if (tr.phase === 4 && tr.deg !== undefined) outStr = `${txtT}, ${formatValue(tr.deg, 1)}°`;
+                if (tr.phase === 4 && tr.deg !== undefined) {
+                    // Override presentation for exact 360-degree point
+                    let displayDeg = Math.abs(tr.t - T4) < 0.001 ? 360 : tr.deg;
+                    outStr = `${txtT}, ${formatValue(displayDeg, 1)}°`;
+                }
                 else if (tr.phase === 1 || tr.phase === 3 || tr.phase === 5) outStr = `${txtX}, ${txtT}`;
                 else outStr = `${txtX}, ${txtY}, ${txtT}`;
 
@@ -997,28 +1042,24 @@
             let lastT = -1;
             for(let currT = tStart; currT <= tEnd + 0.001; currT += interval) {
                 let st = getState(currT);
-                let degVal = "-";
-                
-                if (isLoop && st.deg !== undefined) {
-                    // Force the very last calculation output to precisely read 360 to prevent the math logic from resolving mod to 0.
-                    if (Math.abs(currT - tEnd) < 0.005) {
-                        degVal = formatValue(360, 1) + '°';
-                    } else {
-                        degVal = formatValue(st.deg, 1) + '°';
-                    }
-                }
+                let displayDeg = st.deg;
 
+                // Force rendering exactly 360 when aligned with tEnd
+                if (isLoop && Math.abs(currT - tEnd) < 0.001) {
+                    displayDeg = 360; 
+                }
+                
                 html += `<tr><td>${formatValue(currT, dp)}</td><td>${formatValue(st.x, dp)} (H)</td><td>${formatValue(st.y, dp)} (V)</td>
-                        ${isLoop ? `<td>${degVal}</td>` : ''}</tr>`;
+                        ${isLoop ? `<td>${displayDeg !== undefined ? formatValue(displayDeg, 1) + '°' : '-'}</td>` : ''}</tr>`;
+                
                 lastT = currT;
             }
-
-            // Explicitly force the final 360-degree point onto the table if the interval math skipped right over it
-            if (isLoop && Math.abs(lastT - tEnd) > 0.005) {
+            
+            // If the interval calculation skipped the final loop completion frame, manually append it.
+            if (isLoop && Math.abs(lastT - tEnd) > 0.001) {
                 let st = getState(tEnd);
-                let degVal = formatValue(360, 1) + '°';
                 html += `<tr><td>${formatValue(tEnd, dp)}</td><td>${formatValue(st.x, dp)} (H)</td><td>${formatValue(st.y, dp)} (V)</td>
-                        <td>${degVal}</td></tr>`;
+                        <td>360.0°</td></tr>`;
             }
 
             return html + `</tbody></table></div></div>`;
